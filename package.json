@@ -1,0 +1,32 @@
+{
+  "name": "helpdesk-backend",
+  "version": "1.0.0",
+  "description": "helpdesk backend",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "forever -w src/js/server.js",
+    "lint": "eslint . --fix",
+    "test": "jest --testPathPattern=./src/__tests__/ --passWithNoTests",
+    "coverage": "jest --testPathPattern=./src/__tests__/ --coverage",
+    "e2e": "jest --testPathPattern=./src/e2e/ --runInBand",
+    "preshow:coverage": "npm run coverage",
+    "show:coverage": "live-server coverage/lcov-report"
+  },
+  "author": "Igor",
+  "license": "ISC",
+  "dependencies": {
+    "forever": "^4.0.3",
+    "koa": "^2.15.3",
+    "koa-body": "^6.0.1",
+    "koa-body-parser": "^1.1.2",
+    "koa-static": "^5.0.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.27.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-jest": "^27.1.5",
+    "eslint-plugin-prettier": "^5.0.0"
+  }
+}
