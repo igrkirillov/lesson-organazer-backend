@@ -1,19 +1,21 @@
 import * as http from "http";
 import Application from "koa";
 import { koaBody } from "koa-body";
-import Ticket from "./Ticket.js";
-import { saveTickets, loadTickets } from "./dataUtils.js";
+import koaCors from "koa-cors";
+import Message from "./Message.js";
+import { saveMessages, loadMessages } from "./dataUtils.js";
+import messageTypes from "./messageTypes.js";
+import {decode} from "base64-arraybuffer";
 
 const app = new Application();
-const tickets = loadTickets() || [];
-let maxId = tickets.reduce((maxId, t) => Math.max(maxId, t.id), 0);
+const messages = loadMessages() || [];
+let maxId = messages.reduce((maxId, t) => Math.max(maxId, t.id), 0);
 
-app.use(
-  koaBody({
-    urlencoded: true,
-    multipart: true,
-  }),
-);
+app.use(koaCors());
+app.use(koaBody({
+  json: true,
+  multipart: true
+}));
 app.use((ctx, next) => {
   if (ctx.request.method !== "OPTIONS") {
     next();
@@ -27,11 +29,8 @@ app.use((ctx, next) => {
   ctx.response.status = 204;
 });
 
-app.use(createTicket);
-app.use(updateById);
-app.use(allTickets);
-app.use(ticketById);
-app.use(deleteById);
+app.use(addMessage);
+app.use(allMessages);
 
 const server = http.createServer(app.callback());
 const port = 7070;
@@ -43,104 +42,51 @@ server.listen(port, (err) => {
   console.log("Server is listening to " + port);
 });
 
-function createTicket(context, next) {
+function addMessage(context, next) {
   if (
     context.request.method !== "POST" ||
-    getMethodName(context.request) !== "createTicket"
+    getMethodName(context.request) !== "addMessage"
   ) {
     next();
     return;
   }
-  const { name, status, description } = context.request.body;
+  const { type, data, dateTime } = context.request.body;
+  console.log(context.request.body);
   context.response.set("Access-Control-Allow-Origin", "*");
-  const ticket = new Ticket(getNextId(), name, status, description, Date.now());
-  tickets.push(ticket);
-  saveTickets(tickets);
-  context.response.body = JSON.stringify(ticket);
+  const message = new Message(getNextId(), type, parseData(type, data), parseDateTime(dateTime));
+  messages.push(message);
+  saveMessages(messages);
+  context.response.body = messageToJson(message);
   context.type = "json";
   next();
 }
 
-function updateById(context, next) {
-  if (
-    context.request.method !== "PATCH" ||
-    getMethodName(context.request) !== "updateById"
-  ) {
-    next();
-    return;
-  }
-  const id = getId(context.request);
-  context.response.set("Access-Control-Allow-Origin", "*");
-  const ticket = tickets.find((t) => t.id === id);
-  if (!ticket) {
-    context.response.status = 404;
-    context.response.body = "Not Found";
-  } else {
-    const { name, status, description } = context.request.body;
-    ticket.name = name;
-    ticket.status = status;
-    ticket.description = description;
-    saveTickets(tickets);
-    context.response.body = JSON.stringify(ticket);
-    context.type = "json";
-  }
-  next();
+function messageToJson(message) {
+  return JSON.stringify(message, (key, value) => {
+    if (key === "dateTime") {
+      return dateTimeToString(message.dateTime);
+    } else {
+      return value;
+    }
+  })
 }
 
-function allTickets(context, next) {
+function dateTimeToString(dateTime) {
+  console.log(dateTime)
+  return `${dateTime.getDate()}-${dateTime.getMonth()}-${dateTime.getFullYear()} ${dateTime.getHours()}:${dateTime.getMinutes()}:${dateTime.getSeconds()}`;
+}
+
+function allMessages(context, next) {
   if (
     context.request.method !== "GET" ||
-    getMethodName(context.request) !== "allTickets"
+    getMethodName(context.request) !== "allMessages"
   ) {
     next();
     return;
   }
   context.response.set("Access-Control-Allow-Origin", "*");
-  context.response.body = JSON.stringify(tickets);
+  context.response.body = JSON.stringify(messages);
   context.type = "json";
-  next();
-}
-
-function ticketById(context, next) {
-  if (
-    context.request.method !== "GET" ||
-    getMethodName(context.request) !== "ticketById"
-  ) {
-    next();
-    return;
-  }
-  const id = getId(context.request);
-  context.response.set("Access-Control-Allow-Origin", "*");
-  const ticket = tickets.find((t) => t.id === id);
-  if (!ticket) {
-    context.response.status = 404;
-    context.response.body = "Not Found";
-  } else {
-    context.response.body = JSON.stringify(ticket);
-    context.type = "json";
-  }
-  next();
-}
-
-function deleteById(context, next) {
-  if (
-    context.request.method !== "DELETE" ||
-    getMethodName(context.request) !== "deleteById"
-  ) {
-    next();
-    return;
-  }
-  const id = getId(context.request);
-  context.response.set("Access-Control-Allow-Origin", "*");
-  const index = tickets.findIndex((t) => t.id === id);
-  if (index < 0) {
-    context.response.status = 404;
-    context.response.body = "Not Found";
-  } else {
-    tickets.splice(index, 1);
-    saveTickets(tickets);
-    context.response.status = 202;
-  }
   next();
 }
 
@@ -154,4 +100,22 @@ function getId(request) {
 
 function getNextId() {
   return ++maxId;
+}
+
+function parseData(messageType, data) {
+  switch (messageType) {
+    case messageTypes.text:
+      return data;
+    case messageTypes.audio:
+    case messageTypes.video:
+      return decode(data);
+  }
+}
+
+function parseDateTime(dateTime) {
+  // example 25-06-2024 18:05:06
+  const dateAndTime = dateTime.split(" ");
+  const dateParts = dateAndTime[0].split("-");
+  const timeParts = dateAndTime[1].split(":");
+  return new Date(+dateParts[2], +dateParts[1], +dateParts[0], +timeParts[0], +timeParts[1], +timeParts[2]);
 }

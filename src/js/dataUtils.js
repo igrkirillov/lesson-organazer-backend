@@ -1,13 +1,14 @@
 import * as fs from "fs";
 
-const ticketsPath = "./tickets.json";
-export function loadTickets() {
+const messagesPath = "./data/messages.json";
+
+export function loadMessages() {
   return (
-    fs.existsSync(ticketsPath) &&
-      JSON.parse(fs.readFileSync(ticketsPath).toString())
+    fs.existsSync(messagesPath) &&
+      JSON.parse(fs.readFileSync(messagesPath).toString())
   );
 }
 
-export function saveTickets(json) {
-  fs.writeFileSync(ticketsPath, JSON.stringify(json));
+export function saveMessages(json) {
+  fs.writeFileSync(messagesPath, JSON.stringify(json));
 }
