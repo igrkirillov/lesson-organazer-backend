@@ -2,10 +2,12 @@ import * as http from "http";
 import Application from "koa";
 import { koaBody } from "koa-body";
 import koaCors from "koa-cors";
+import koaSend from "koa-send";
 import Message from "./Message.js";
-import { saveMessages, loadMessages } from "./dataUtils.js";
+import {saveMessages, loadMessages, saveAttachments, getAttachmentPath} from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
 import {decode} from "base64-arraybuffer";
+import Attachment from "./Attachment.js";
 
 const app = new Application();
 const messages = loadMessages() || [];
@@ -14,7 +16,11 @@ let maxId = messages.reduce((maxId, t) => Math.max(maxId, t.id), 0);
 app.use(koaCors());
 app.use(koaBody({
   json: true,
-  multipart: true
+  multipart: true,
+  formLimit: "100mb",
+  jsonLimit: "100mb",
+  textLimit: "100mb",
+  enableTypes: ['json', 'form', 'text']
 }));
 app.use((ctx, next) => {
   if (ctx.request.method !== "OPTIONS") {
@@ -31,6 +37,7 @@ app.use((ctx, next) => {
 
 app.use(addMessage);
 app.use(allMessages);
+app.use(downloadAttachment);
 
 const server = http.createServer(app.callback());
 const port = 7070;
@@ -50,14 +57,37 @@ function addMessage(context, next) {
     next();
     return;
   }
-  const { type, data, dateTime } = context.request.body;
-  console.log(context.request.body);
-  context.response.set("Access-Control-Allow-Origin", "*");
-  const message = new Message(getNextId(), type, parseData(type, data), parseDateTime(dateTime));
+
+  const { type, data, dateTime, attachments : rawAttachments} = context.request.body;
+
+  const messageId = getNextId();
+  const attachments = parseAttachments(messageId, rawAttachments);
+  const message = new Message(messageId, type, parseData(type, data), parseDateTime(dateTime), attachments.map(a => a.name));
+
   messages.push(message);
   saveMessages(messages);
+
+  saveAttachments(attachments);
+
   context.response.body = messageToJson(message);
+  context.response.set("Access-Control-Allow-Origin", "*");
   context.type = "json";
+  next();
+}
+
+async function downloadAttachment(context, next) {
+  if (
+    context.request.method !== "GET" ||
+    getMethodName(context.request) !== "downloadAttachment"
+  ) {
+    next();
+    return;
+  }
+
+  const filePath = getAttachmentPath(getMessageId(context.request), getAttachmentName(context.request));
+  context.attachment(filePath);
+  await koaSend(context, filePath);
+
   next();
 }
 
@@ -94,8 +124,12 @@ function getMethodName(request) {
   return request.query && request.query["method"];
 }
 
-function getId(request) {
-  return request.query && +request.query["id"];
+function getMessageId(request) {
+  return request.query && +request.query["messageId"];
+}
+
+function getAttachmentName(request) {
+  return request.query && request.query["attachmentName"];
 }
 
 function getNextId() {
@@ -118,4 +152,12 @@ function parseDateTime(dateTime) {
   const dateParts = dateAndTime[0].split("-");
   const timeParts = dateAndTime[1].split(":");
   return new Date(+dateParts[2], +dateParts[1], +dateParts[0], +timeParts[0], +timeParts[1], +timeParts[2]);
+}
+
+function parseAttachments(messageId, attachments) {
+  const array = [];
+  for (const attachment of attachments) {
+    array.push(new Attachment(messageId, attachment.file, decode(attachment.arrayBuffer)));
+  }
+  return array;
 }
