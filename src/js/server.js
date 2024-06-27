@@ -3,6 +3,7 @@ import Application from "koa";
 import { koaBody } from "koa-body";
 import koaCors from "koa-cors";
 import koaSend from "koa-send";
+import koaSendFile from "koa-sendfile";
 import Message from "./Message.js";
 import {saveMessages, loadMessages, saveAttachments, getAttachmentPath} from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
@@ -85,10 +86,8 @@ async function downloadAttachment(context, next) {
   }
 
   const filePath = getAttachmentPath(getMessageId(context.request), getAttachmentName(context.request));
-  context.attachment(filePath);
-  await koaSend(context, filePath);
-
-  next();
+  context.status = 200;
+  return context.attachment(filePath);
 }
 
 function messageToJson(message) {
