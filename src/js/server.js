@@ -1,16 +1,13 @@
 import * as http from "http";
+import * as fs from "fs";
 import Application from "koa";
-import { koaBody } from "koa-body";
+import {koaBody} from "koa-body";
 import koaCors from "koa-cors";
+import mime from "mime-types";
 import Message from "./Message.js";
-import {
-  getAttachmentPath,
-  loadMessages,
-  saveAttachments,
-  saveMessages,
-} from "./dataUtils.js";
+import {getAttachmentPath, loadMessages, saveAttachments, saveMessages,} from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
-import { decode } from "base64-arraybuffer";
+import {decode} from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 
 const app = new Application();
@@ -106,7 +103,10 @@ async function downloadAttachment(context, next) {
     getAttachmentName(context.request),
   );
   context.status = 200;
-  return context.attachment(filePath);
+  context.response.body = fs.createReadStream(filePath);
+  context.attachment(filePath);
+  context.response.set('Content-type', mime.lookup(filePath));
+  next();
 }
 
 function messageToJson(message) {
