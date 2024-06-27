@@ -11,8 +11,7 @@ import {
   saveAttachments,
   saveMessages,
 } from "./dataUtils.js";
-import messageTypes from "./messageTypes.js";
-import {decode, encode} from "base64-arraybuffer";
+import { decode } from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 
 const app = new Application();
@@ -120,7 +119,7 @@ function messageToJson(message) {
     if (key === "dateTime") {
       return dateTimeToString(message.dateTime);
     } else {
-        return value;
+      return value;
     }
   });
 }
