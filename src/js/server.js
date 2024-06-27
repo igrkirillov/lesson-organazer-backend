@@ -12,7 +12,7 @@ import {
   saveMessages,
 } from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
-import { decode } from "base64-arraybuffer";
+import {decode, encode} from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 
 const app = new Application();
@@ -74,11 +74,11 @@ function addMessage(context, next) {
   } = context.request.body;
 
   const messageId = getNextId();
-  const attachments = parseAttachments(messageId, rawAttachments);
+  const attachments = parseRawAttachments(messageId, rawAttachments);
   const message = new Message(
     messageId,
     type,
-    parseData(type, data),
+    data,
     parseDateTime(dateTime),
     attachments.map((a) => a.name),
   );
@@ -120,7 +120,7 @@ function messageToJson(message) {
     if (key === "dateTime") {
       return dateTimeToString(message.dateTime);
     } else {
-      return value;
+        return value;
     }
   });
 }
@@ -160,16 +160,6 @@ function getNextId() {
   return ++maxId;
 }
 
-function parseData(messageType, data) {
-  switch (messageType) {
-    case messageTypes.text:
-      return data;
-    case messageTypes.audio:
-    case messageTypes.video:
-      return decode(data);
-  }
-}
-
 function parseDateTime(dateTime) {
   // example 25-06-2024 18:05:06
   const dateAndTime = dateTime.split(" ");
@@ -185,16 +175,18 @@ function parseDateTime(dateTime) {
   );
 }
 
-function parseAttachments(messageId, attachments) {
+function parseRawAttachments(messageId, rawAttachments) {
   const array = [];
-  for (const attachment of attachments) {
-    array.push(
-      new Attachment(
-        messageId,
-        attachment.file,
-        decode(attachment.arrayBuffer),
-      ),
-    );
+  if (rawAttachments && rawAttachments.length > 0) {
+    for (const rawAttachment of rawAttachments) {
+      array.push(
+        new Attachment(
+          messageId,
+          rawAttachment.file,
+          decode(rawAttachment.arrayBuffer),
+        ),
+      );
+    }
   }
   return array;
 }
