@@ -1,11 +1,7 @@
 import * as fs from "fs";
 
 const messagesPath = "./data/messages.json";
-const dirs = [
-  "./data",
-  "./data/audio",
-  "./data/files",
-  "./data/video"]
+const dirs = ["./data", "./data/audio", "./data/files", "./data/video"];
 
 export function loadMessages() {
   initDirs();
