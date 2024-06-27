@@ -1,11 +1,9 @@
 import * as http from "http";
 import Application from "koa";
-import { koaBody } from "koa-body";
+import {koaBody} from "koa-body";
 import koaCors from "koa-cors";
-import koaSend from "koa-send";
-import koaSendFile from "koa-sendfile";
 import Message from "./Message.js";
-import {saveMessages, loadMessages, saveAttachments, getAttachmentPath} from "./dataUtils.js";
+import {getAttachmentPath, loadMessages, saveAttachments, saveMessages} from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
 import {decode} from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
