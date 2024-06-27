@@ -86,7 +86,4 @@ typings/
 
 tickets.json
 
-data/audio/*
-data/video/*
-data/files/*
-data/messages.json
+data
