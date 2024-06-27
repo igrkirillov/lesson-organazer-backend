@@ -1,11 +1,16 @@
 import * as http from "http";
 import Application from "koa";
-import {koaBody} from "koa-body";
+import { koaBody } from "koa-body";
 import koaCors from "koa-cors";
 import Message from "./Message.js";
-import {getAttachmentPath, loadMessages, saveAttachments, saveMessages} from "./dataUtils.js";
+import {
+  getAttachmentPath,
+  loadMessages,
+  saveAttachments,
+  saveMessages,
+} from "./dataUtils.js";
 import messageTypes from "./messageTypes.js";
-import {decode} from "base64-arraybuffer";
+import { decode } from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 
 const app = new Application();
@@ -13,14 +18,16 @@ const messages = loadMessages() || [];
 let maxId = messages.reduce((maxId, t) => Math.max(maxId, t.id), 0);
 
 app.use(koaCors());
-app.use(koaBody({
-  json: true,
-  multipart: true,
-  formLimit: "100mb",
-  jsonLimit: "100mb",
-  textLimit: "100mb",
-  enableTypes: ['json', 'form', 'text']
-}));
+app.use(
+  koaBody({
+    json: true,
+    multipart: true,
+    formLimit: "100mb",
+    jsonLimit: "100mb",
+    textLimit: "100mb",
+    enableTypes: ["json", "form", "text"],
+  }),
+);
 app.use((ctx, next) => {
   if (ctx.request.method !== "OPTIONS") {
     next();
@@ -57,11 +64,22 @@ function addMessage(context, next) {
     return;
   }
 
-  const { type, data, dateTime, attachments : rawAttachments} = context.request.body;
+  const {
+    type,
+    data,
+    dateTime,
+    attachments: rawAttachments,
+  } = context.request.body;
 
   const messageId = getNextId();
   const attachments = parseAttachments(messageId, rawAttachments);
-  const message = new Message(messageId, type, parseData(type, data), parseDateTime(dateTime), attachments.map(a => a.name));
+  const message = new Message(
+    messageId,
+    type,
+    parseData(type, data),
+    parseDateTime(dateTime),
+    attachments.map((a) => a.name),
+  );
 
   messages.push(message);
   saveMessages(messages);
@@ -83,7 +101,10 @@ async function downloadAttachment(context, next) {
     return;
   }
 
-  const filePath = getAttachmentPath(getMessageId(context.request), getAttachmentName(context.request));
+  const filePath = getAttachmentPath(
+    getMessageId(context.request),
+    getAttachmentName(context.request),
+  );
   context.status = 200;
   return context.attachment(filePath);
 }
@@ -95,11 +116,11 @@ function messageToJson(message) {
     } else {
       return value;
     }
-  })
+  });
 }
 
 function dateTimeToString(dateTime) {
-  console.log(dateTime)
+  console.log(dateTime);
   return `${dateTime.getDate()}-${dateTime.getMonth()}-${dateTime.getFullYear()} ${dateTime.getHours()}:${dateTime.getMinutes()}:${dateTime.getSeconds()}`;
 }
 
@@ -148,13 +169,26 @@ function parseDateTime(dateTime) {
   const dateAndTime = dateTime.split(" ");
   const dateParts = dateAndTime[0].split("-");
   const timeParts = dateAndTime[1].split(":");
-  return new Date(+dateParts[2], +dateParts[1], +dateParts[0], +timeParts[0], +timeParts[1], +timeParts[2]);
+  return new Date(
+    +dateParts[2],
+    +dateParts[1],
+    +dateParts[0],
+    +timeParts[0],
+    +timeParts[1],
+    +timeParts[2],
+  );
 }
 
 function parseAttachments(messageId, attachments) {
   const array = [];
   for (const attachment of attachments) {
-    array.push(new Attachment(messageId, attachment.file, decode(attachment.arrayBuffer)));
+    array.push(
+      new Attachment(
+        messageId,
+        attachment.file,
+        decode(attachment.arrayBuffer),
+      ),
+    );
   }
   return array;
 }
