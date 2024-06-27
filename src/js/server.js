@@ -106,6 +106,7 @@ async function downloadAttachment(context, next) {
   context.response.body = fs.createReadStream(filePath);
   context.attachment(filePath);
   context.set("Content-type", mime.lookup(filePath));
+
   next();
 }
 
