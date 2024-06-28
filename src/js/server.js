@@ -188,4 +188,5 @@ function parseRawAttachments(messageId, rawAttachments) {
     }
   }
   return array;
+
 }
