@@ -13,6 +13,7 @@ import {
 } from "./dataUtils.js";
 import { decode } from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
+import MessagesPage from "./MessagesPage.js";
 
 const app = new Application();
 const messages = loadMessages() || [];
@@ -43,7 +44,7 @@ app.use((ctx, next) => {
 });
 
 app.use(addMessage);
-app.use(allMessages);
+app.use(getPage);
 app.use(downloadAttachment);
 
 const server = http.createServer(app.callback());
@@ -78,7 +79,7 @@ function addMessage(context, next) {
     messageId,
     type,
     data,
-    parseDateTime(dateTime),
+    dateTime,
     attachments.map((a) => a.name),
   );
 
@@ -115,30 +116,25 @@ async function downloadAttachment(context, next) {
 }
 
 function messageToJson(message) {
-  return JSON.stringify(message, (key, value) => {
-    if (key === "dateTime") {
-      return dateTimeToString(message.dateTime);
-    } else {
-      return value;
-    }
-  });
+  return JSON.stringify(message);
 }
 
-function dateTimeToString(dateTime) {
-  console.log(dateTime);
-  return `${dateTime.getDate()}-${dateTime.getMonth()}-${dateTime.getFullYear()} ${dateTime.getHours()}:${dateTime.getMinutes()}:${dateTime.getSeconds()}`;
-}
-
-function allMessages(context, next) {
+function getPage(context, next) {
   if (
     context.request.method !== "GET" ||
-    getMethodName(context.request) !== "allMessages"
+    getMethodName(context.request) !== "getPage"
   ) {
     next();
     return;
   }
+
+  const page = getMessagesPage(
+    getPageIndex(context.request),
+    getPageSize(context.request),
+  );
+
   context.response.set("Access-Control-Allow-Origin", "*");
-  context.response.body = JSON.stringify(messages);
+  context.response.body = messagesPageToJson(page);
   context.type = "json";
   next();
 }
@@ -155,23 +151,33 @@ function getAttachmentName(request) {
   return request.query && request.query["attachmentName"];
 }
 
-function getNextId() {
-  return ++maxId;
+function getPageIndex(request) {
+  return (request.query && request.query["pageIndex"]) || 1;
 }
 
-function parseDateTime(dateTime) {
-  // example 25-06-2024 18:05:06
-  const dateAndTime = dateTime.split(" ");
-  const dateParts = dateAndTime[0].split("-");
-  const timeParts = dateAndTime[1].split(":");
-  return new Date(
-    +dateParts[2],
-    +dateParts[1],
-    +dateParts[0],
-    +timeParts[0],
-    +timeParts[1],
-    +timeParts[2],
+function getPageSize(request) {
+  return (request.query && request.query["pageSize"]) || 3;
+}
+
+function getMessagesPage(pageIndex, pageSize) {
+  const pagesCount =
+    messages.length / pageSize + (messages.length % pageSize !== 0 ? 1 : 0);
+  pageIndex = Math.min(pageIndex, pagesCount - 1);
+  const pageMessages = messages.slice(
+    pageSize * pageIndex,
+    pageSize * (pageIndex + 1),
   );
+  return new MessagesPage(
+    pageIndex,
+    pageSize,
+    Math.max(0, pageSize * (pageIndex - 1)),
+    messages.length - pageSize * pageIndex,
+    pageMessages,
+  );
+}
+
+function getNextId() {
+  return ++maxId;
 }
 
 function parseRawAttachments(messageId, rawAttachments) {
@@ -188,5 +194,8 @@ function parseRawAttachments(messageId, rawAttachments) {
     }
   }
   return array;
+}
 
+function messagesPageToJson(page) {
+  return JSON.stringify(page);
 }
