@@ -20,7 +20,9 @@ export function saveAttachments(attachments) {
   initDirs();
   for (const attachment of attachments) {
     const dirPath = `./data/files/${attachment.messageId}`;
-    fs.mkdirSync(dirPath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath);
+    }
     const filePath = dirPath + `/${attachment.name}`;
     fs.writeFileSync(filePath, Buffer.from(attachment.arrayBuffer));
   }

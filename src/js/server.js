@@ -164,8 +164,8 @@ function getMessagesPage(pageIndex, pageSize) {
     messages.length / pageSize + (messages.length % pageSize !== 0 ? 1 : 0);
   pageIndex = Math.min(pageIndex, pagesCount - 1);
   const pageMessages = messages.slice(
-    pageSize * pageIndex,
-    pageSize * (pageIndex + 1),
+    messages.length - pageSize * (pageIndex + 1),
+    messages.length - pageSize * pageIndex,
   );
   return new MessagesPage(
     pageIndex,
