@@ -163,15 +163,17 @@ function getMessagesPage(pageIndex, pageSize) {
   const pagesCount =
     messages.length / pageSize + (messages.length % pageSize !== 0 ? 1 : 0);
   pageIndex = Math.min(pageIndex, pagesCount - 1);
-  const pageMessages = messages.slice(
-    messages.length - pageSize * (pageIndex + 1),
-    messages.length - pageSize * pageIndex,
-  );
+  const pageMessages = messages
+    .slice(
+      messages.length - pageSize * (pageIndex + 1),
+      messages.length - pageSize * pageIndex,
+    )
+    .reverse();
   return new MessagesPage(
     pageIndex,
     pageSize,
-    Math.max(0, pageSize * (pageIndex - 1)),
-    messages.length - pageSize * pageIndex,
+    messages.length - pageSize * (pageIndex + 1),
+    pageSize * pageIndex,
     pageMessages,
   );
 }
