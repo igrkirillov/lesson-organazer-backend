@@ -71,6 +71,7 @@ function addMessage(context, next) {
     data,
     dateTime,
     attachments: rawAttachments,
+    location
   } = context.request.body;
 
   const messageId = getNextId();
@@ -81,6 +82,7 @@ function addMessage(context, next) {
     data,
     dateTime,
     attachments.map((a) => a.name),
+    location
   );
 
   messages.push(message);
