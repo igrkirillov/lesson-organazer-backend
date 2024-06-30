@@ -14,10 +14,12 @@ import {
 import { decode } from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 import MessagesPage from "./MessagesPage.js";
+import WebSocket, { WebSocketServer } from "ws";
 
 const app = new Application();
 const messages = loadMessages() || [];
 let maxId = messages.reduce((maxId, t) => Math.max(maxId, t.id), 0);
+let clientId = 0;
 
 app.use(koaCors());
 app.use(
@@ -46,8 +48,11 @@ app.use((ctx, next) => {
 app.use(addMessage);
 app.use(getPage);
 app.use(downloadAttachment);
+app.use(getClientId);
 
 const server = http.createServer(app.callback());
+const wsServer = new WebSocketServer({ server });
+
 const port = 7070;
 server.listen(port, (err) => {
   if (err) {
@@ -67,22 +72,24 @@ function addMessage(context, next) {
   }
 
   const {
+    clientId,
     type,
     data,
     dateTime,
     attachments: rawAttachments,
-    location
+    location,
   } = context.request.body;
 
   const messageId = getNextId();
   const attachments = parseRawAttachments(messageId, rawAttachments);
   const message = new Message(
+    clientId,
     messageId,
     type,
     data,
     dateTime,
     attachments.map((a) => a.name),
-    location
+    location,
   );
 
   messages.push(message);
@@ -90,10 +97,18 @@ function addMessage(context, next) {
 
   saveAttachments(attachments);
 
+  sendToWsClientsMessage(message);
+
   context.response.body = messageToJson(message);
   context.response.set("Access-Control-Allow-Origin", "*");
   context.type = "json";
   next();
+}
+
+function sendToWsClientsMessage(message) {
+  [...wsServer.clients]
+    .filter((o) => o.readyState === WebSocket.OPEN)
+    .forEach((o) => o.send(JSON.stringify(message)));
 }
 
 async function downloadAttachment(context, next) {
@@ -119,6 +134,23 @@ async function downloadAttachment(context, next) {
 
 function messageToJson(message) {
   return JSON.stringify(message);
+}
+
+function getClientId(context, next) {
+  if (
+    context.request.method !== "GET" ||
+    getMethodName(context.request) !== "getClientId"
+  ) {
+    next();
+    return;
+  }
+
+  context.response.set("Access-Control-Allow-Origin", "*");
+  context.response.body = JSON.stringify({
+    clientId: getNextClientId(),
+  });
+  context.type = "json";
+  next();
 }
 
 function getPage(context, next) {
@@ -182,6 +214,10 @@ function getMessagesPage(pageIndex, pageSize) {
 
 function getNextId() {
   return ++maxId;
+}
+
+function getNextClientId() {
+  return ++clientId;
 }
 
 function parseRawAttachments(messageId, rawAttachments) {
