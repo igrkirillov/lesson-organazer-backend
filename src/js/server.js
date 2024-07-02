@@ -15,6 +15,7 @@ import { decode } from "base64-arraybuffer";
 import Attachment from "./Attachment.js";
 import MessagesPage from "./MessagesPage.js";
 import WebSocket, { WebSocketServer } from "ws";
+import messageTypes from "./messageTypes.js";
 
 const app = new Application();
 const messages = loadMessages() || [];
@@ -165,6 +166,7 @@ function getPage(context, next) {
   const page = getMessagesPage(
     getPageIndex(context.request),
     getPageSize(context.request),
+    getSearchText(context.request),
   );
 
   context.response.set("Access-Control-Allow-Origin", "*");
@@ -193,22 +195,38 @@ function getPageSize(request) {
   return (request.query && request.query["pageSize"]) || 3;
 }
 
-function getMessagesPage(pageIndex, pageSize) {
+function getSearchText(request) {
+  return (request.query && request.query["searchText"]) || null;
+}
+
+function getMessagesPage(pageIndex, pageSize, searchText) {
+  const filteredMessages = messages.filter(
+    (m) => !searchText || searchText.length === 0 || containsText(m, searchText),
+  );
   const pagesCount =
-    messages.length / pageSize + (messages.length % pageSize !== 0 ? 1 : 0);
+    filteredMessages.length / pageSize +
+    (filteredMessages.length % pageSize !== 0 ? 1 : 0);
   pageIndex = Math.min(pageIndex, pagesCount - 1);
-  const pageMessages = messages
+  const pageMessages = filteredMessages
     .slice(
-      Math.max(0, messages.length - pageSize * (pageIndex + 1)),
-      messages.length - pageSize * pageIndex,
+      Math.max(0, filteredMessages.length - pageSize * (pageIndex + 1)),
+      filteredMessages.length - pageSize * pageIndex,
     )
     .reverse();
   return new MessagesPage(
     pageIndex,
     pageSize,
-    messages.length - pageSize * (pageIndex + 1),
+    filteredMessages.length - pageSize * (pageIndex + 1),
     pageSize * pageIndex,
     pageMessages,
+  );
+}
+
+function containsText(message, searchText) {
+  return (
+    message.type === messageTypes.text &&
+    message.data &&
+    message.data.toLowerCase().includes(searchText.toLowerCase())
   );
 }
 
