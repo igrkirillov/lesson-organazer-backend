@@ -202,7 +202,7 @@ function getSearchText(request) {
 function getMessagesPage(pageIndex, pageSize, searchText) {
   const filteredMessages = messages.filter(
     (m) =>
-      !searchText || searchText.length === 0 || containsText(m, searchText),
+      !searchText || containsText(m, searchText),
   );
   const pagesCount =
     filteredMessages.length / pageSize +
